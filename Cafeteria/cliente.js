@@ -38,6 +38,49 @@ function buscarProducto(idProducto) {
     return catalogo.find(producto => producto.id === idProducto);
 }
 
+function editarProducto(idProducto, nombre, precio) {
+    const producto = buscarProducto(idProducto);
+
+    if (!producto) {
+        console.log(`Producto con id ${idProducto} no existe`);
+        return null;
+    }
+
+    if (!nombre || isNaN(precio) || precio <= 0) {
+        console.log("Producto invalido: se requiere nombre y un precio mayor a 0");
+        return null;
+    }
+
+    producto.nombre = nombre;
+    producto.precio = precio;
+    console.log(`Producto #${producto.id} actualizado: ${nombre} - $${precio.toFixed(2)}`);
+    return producto;
+}
+
+function eliminarProducto(idProducto) {
+    const indice = catalogo.findIndex(producto => producto.id === idProducto);
+
+    if (indice === -1) {
+        console.log(`Producto con id ${idProducto} no existe`);
+        return false;
+    }
+
+    const [eliminado] = catalogo.splice(indice, 1);
+    console.log(`Producto #${eliminado.id} eliminado: ${eliminado.nombre}`);
+    return true;
+}
+
+function generarFolio() {
+    let folio;
+
+    do {
+        const codigo = Math.floor(1000 + Math.random() * 9000);
+        folio = `F-${codigo}`;
+    } while (pedidosCliente.some(pedido => pedido.folio === folio));
+
+    return folio;
+}
+
 function crearPedido(cliente, idsProductos) {
     const productos = [];
     let total = 0;
@@ -61,13 +104,34 @@ function crearPedido(cliente, idsProductos) {
 
     const pedido = {
         id: pedidosCliente.length + 1,
+        folio: generarFolio(),
         cliente: cliente,
         productos: productos,
-        total: total
+        total: total,
+        estado: "pendiente"
     };
 
     pedidosCliente.push(pedido);
-    console.log(`Pedido #${pedido.id} creado para ${cliente} - Total: $${total.toFixed(2)}`);
+    console.log(`Pedido creado para ${cliente} - Total: $${total.toFixed(2)}`);
+    console.log(`Tu folio es: ${pedido.folio} (guardalo para consultar el estado de tu pedido)`);
+    return pedido;
+}
+
+function consultarPedidoPorFolio(folio) {
+    const pedido = pedidosCliente.find(pedido => pedido.folio === (folio || "").trim().toUpperCase());
+
+    if (!pedido) {
+        console.log(`No se encontro ningun pedido con el folio "${folio}"`);
+        return null;
+    }
+
+    const nombres = pedido.productos.map(producto => producto.nombre).join(", ");
+    console.log("\n--- Estado de tu pedido ---");
+    console.log(`Folio: ${pedido.folio}`);
+    console.log(`Cliente: ${pedido.cliente}`);
+    console.log(`Productos: ${nombres}`);
+    console.log(`Total: $${pedido.total.toFixed(2)}`);
+    console.log(`Estado: ${pedido.estado}`);
     return pedido;
 }
 
@@ -81,7 +145,7 @@ function listarPedidos() {
 
     for (const pedido of pedidosCliente) {
         const nombres = pedido.productos.map(producto => producto.nombre).join(", ");
-        console.log(`#${pedido.id} | ${pedido.cliente} | ${nombres} | $${pedido.total.toFixed(2)}`);
+        console.log(`#${pedido.id} | ${pedido.cliente} | ${nombres} | $${pedido.total.toFixed(2)} | ${pedido.estado}`);
     }
     return pedidosCliente;
 }
@@ -91,4 +155,15 @@ agregarProducto("Galleta", 15);
 agregarProducto("Jugo de naranja", 35);
 agregarProducto("Chocolate caliente", 40);
 
-module.exports = { catalogo, pedidosCliente, consultarProductos, agregarProducto, buscarProducto, crearPedido, listarPedidos };
+module.exports = {
+    catalogo,
+    pedidosCliente,
+    consultarProductos,
+    agregarProducto,
+    editarProducto,
+    eliminarProducto,
+    buscarProducto,
+    crearPedido,
+    listarPedidos,
+    consultarPedidoPorFolio
+};
