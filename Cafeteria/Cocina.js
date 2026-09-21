@@ -27,7 +27,7 @@ function verPedidosPendientes() {
 
     for (const pedido of pendientes) {
         const nombres = pedido.productos.map(producto => producto.nombre).join(", ");
-        console.log(`#${pedido.id} | ${pedido.cliente} | ${nombres}`);
+        console.log(`#${pedido.id} | ${pedido.folio} | ${pedido.cliente} | ${nombres}`);
     }
     return pendientes;
 }

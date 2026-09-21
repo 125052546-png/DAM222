@@ -81,8 +81,7 @@ async function menuCliente(rl) {
         console.log("\n=== Menu Cliente ===");
         console.log("1. Consultar productos");
         console.log("2. Crear pedido");
-        console.log("3. Lista de pedidos");
-        console.log("4. Consultar estado de mi pedido");
+        console.log("3. Consultar estado de mi pedido");
         console.log("0. Volver");
         opcion = (await rl.question("Elige una opcion: ")).trim();
 
@@ -93,9 +92,6 @@ async function menuCliente(rl) {
             await flujoCrearPedido(rl, "Cliente");
             await pausar(rl);
         } else if (opcion === "3") {
-            cliente.listarPedidos();
-            await pausar(rl);
-        } else if (opcion === "4") {
             const folio = (await rl.question("Folio de tu pedido: ")).trim();
             if (!folio) {
                 console.log("Debes indicar un folio");
