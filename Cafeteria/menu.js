@@ -46,7 +46,7 @@ async function flujoCrearPedido(rl, contexto) {
         return;
     }
 
-    cliente.crearPedido(nombre, ids);
+    caja.agregarPedido(nombre, ids);
 }
 
 async function menuCaja(rl) {

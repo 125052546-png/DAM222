@@ -83,7 +83,6 @@ function generarFolio() {
 
 function crearPedido(cliente, idsProductos) {
     const productos = [];
-    let total = 0;
 
     for (const idProducto of idsProductos) {
         const producto = buscarProducto(idProducto);
@@ -94,7 +93,6 @@ function crearPedido(cliente, idsProductos) {
         }
 
         productos.push(producto);
-        total += producto.precio;
     }
 
     if (productos.length === 0) {
@@ -107,12 +105,14 @@ function crearPedido(cliente, idsProductos) {
         folio: generarFolio(),
         cliente: cliente,
         productos: productos,
-        total: total,
+        subtotal: 0,
+        iva: 0,
+        total: 0,
         estado: "pendiente"
     };
 
     pedidosCliente.push(pedido);
-    console.log(`Pedido creado para ${cliente} - Total: $${total.toFixed(2)}`);
+    console.log(`Pedido creado para ${cliente}`);
     console.log(`Tu folio es: ${pedido.folio} (guardalo para consultar el estado de tu pedido)`);
     return pedido;
 }
@@ -130,6 +130,8 @@ function consultarPedidoPorFolio(folio) {
     console.log(`Folio: ${pedido.folio}`);
     console.log(`Cliente: ${pedido.cliente}`);
     console.log(`Productos: ${nombres}`);
+    console.log(`Subtotal: $${pedido.subtotal.toFixed(2)}`);
+    console.log(`IVA: $${pedido.iva.toFixed(2)}`);
     console.log(`Total: $${pedido.total.toFixed(2)}`);
     console.log(`Estado: ${pedido.estado}`);
     return pedido;
@@ -145,7 +147,7 @@ function listarPedidos() {
 
     for (const pedido of pedidosCliente) {
         const nombres = pedido.productos.map(producto => producto.nombre).join(", ");
-        console.log(`#${pedido.id} | ${pedido.folio} | ${pedido.cliente} | ${nombres} | $${pedido.total.toFixed(2)} | ${pedido.estado}`);
+        console.log(`#${pedido.id} | ${pedido.folio} | ${pedido.cliente} | ${nombres} | Subtotal $${pedido.subtotal.toFixed(2)} | IVA $${pedido.iva.toFixed(2)} | Total $${pedido.total.toFixed(2)} | ${pedido.estado}`);
     }
     return pedidosCliente;
 }
