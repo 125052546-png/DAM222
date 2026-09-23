@@ -1,10 +1,10 @@
 
 const catalogo = [
-    { id: 1, nombre: "Cafe americano", precio: 30 },
-    { id: 2, nombre: "Capuchino", precio: 45 },
-    { id: 3, nombre: "Te chai", precio: 40 },
-    { id: 4, nombre: "Pan dulce", precio: 20.5 },
-    { id: 5, nombre: "Sandwich", precio: 55 }
+    { id: 1, nombre: "Cafe americano", precio: 30, categoria: "bebida", stock: 20, promocion: false },
+    { id: 2, nombre: "Capuchino", precio: 45, categoria: "bebida", stock: 15, promocion: true },
+    { id: 3, nombre: "Te chai", precio: 40, categoria: "bebida", stock: 10, promocion: false },
+    { id: 4, nombre: "Pan dulce", precio: 20.5, categoria: "postre", stock: 8, promocion: false },
+    { id: 5, nombre: "Sandwich", precio: 55, categoria: "comida", stock: 5, promocion: false }
 ];
 
 const pedidosCliente = [];
@@ -17,7 +17,7 @@ function consultarProductos() {
     return catalogo;
 }
 
-function agregarProducto(nombre, precio) {
+function agregarProducto(nombre, precio, categoria = "otro", stock = 10, promocion = false) {
     if (!nombre || isNaN(precio) || precio <= 0) {
         console.log("Producto invalido: se requiere nombre y un precio mayor a 0");
         return null;
@@ -26,12 +26,36 @@ function agregarProducto(nombre, precio) {
     const producto = {
         id: catalogo.length + 1,
         nombre: nombre,
-        precio: precio
+        precio: precio,
+        categoria: categoria,
+        stock: stock,
+        promocion: promocion
     };
 
     catalogo.push(producto);
     console.log(`Producto #${producto.id} agregado: ${nombre} - $${precio.toFixed(2)}`);
     return producto;
+}
+
+function mostrarMenuDinamico() {
+    console.log("\n--- Menu del dia ---");
+
+    const disponibles = catalogo.filter(producto => producto.stock > 0);
+
+    if (disponibles.length === 0) {
+        console.log("No hay productos disponibles por el momento");
+        return disponibles;
+    }
+
+    const lineas = disponibles.map(producto => {
+        const etiquetaPromo = producto.promocion ? " (EN PROMOCION)" : "";
+        const etiquetaStock = producto.stock <= 5 ? " - ultimas piezas" : "";
+        return `${producto.id}. ${producto.nombre} [${producto.categoria}] - $${producto.precio.toFixed(2)}${etiquetaPromo}${etiquetaStock}`;
+    });
+
+    lineas.forEach(linea => console.log(linea));
+
+    return disponibles;
 }
 
 function buscarProducto(idProducto) {
@@ -159,6 +183,7 @@ module.exports = {
     catalogo,
     pedidosCliente,
     consultarProductos,
+    mostrarMenuDinamico,
     agregarProducto,
     editarProducto,
     eliminarProducto,

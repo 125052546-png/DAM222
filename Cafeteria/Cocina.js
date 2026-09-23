@@ -16,6 +16,35 @@ function eliminarProducto(idProducto) {
     return cliente.eliminarProducto(idProducto);
 }
 
+function buscarBaratos(limite) {
+    return cliente.catalogo.filter(producto => producto.precio <= limite);
+}
+
+function buscarCaros(limite) {
+    return cliente.catalogo.filter(producto => producto.precio >= limite);
+}
+
+function buscarPorEtiqueta(etiqueta) {
+    return cliente.catalogo.filter(producto => producto.categoria === etiqueta);
+}
+
+function buscarBebidas() {
+    return buscarPorEtiqueta("bebida");
+}
+
+function buscarPostres() {
+    return buscarPorEtiqueta("postre");
+}
+
+function buscarProductoPorNombre(nombre) {
+    return cliente.catalogo.find(producto => producto.nombre.toLowerCase() === nombre.toLowerCase());
+}
+
+function ordenarPorPrecio(ascendente = true) {
+    const copia = [...cliente.catalogo];
+    return copia.sort((a, b) => ascendente ? a.precio - b.precio : b.precio - a.precio);
+}
+
 function verPedidosPendientes() {
     const pendientes = cliente.pedidosCliente.filter(pedido => pedido.estado === "pendiente");
 
@@ -55,6 +84,13 @@ module.exports = {
     agregarProducto,
     editarProducto,
     eliminarProducto,
+    buscarBaratos,
+    buscarCaros,
+    buscarPorEtiqueta,
+    buscarBebidas,
+    buscarPostres,
+    buscarProductoPorNombre,
+    ordenarPorPrecio,
     verPedidosPendientes,
     marcarPedidoListo
 };
