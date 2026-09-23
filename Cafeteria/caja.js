@@ -1,22 +1,6 @@
 const cliente = require("./cliente");
 
-const TASA_IVA = 0.16;
-
-function calcularTotales(productos) {
-    const { subtotal, iva, total } = productos.reduce(
-        ({ subtotal, iva, total }, { precio }) => {
-            const ivaProducto = precio * TASA_IVA;
-            return {
-                subtotal: subtotal + precio,
-                iva: iva + ivaProducto,
-                total: total + precio + ivaProducto
-            };
-        },
-        { subtotal: 0, iva: 0, total: 0 }
-    );
-
-    return { subtotal, iva, total };
-}
+const IVA = 0.16;
 
 function agregarPedido(nombreCliente, idsProductos) {
     const pedido = cliente.crearPedido(nombreCliente, idsProductos);
@@ -32,15 +16,32 @@ function agregarPedido(nombreCliente, idsProductos) {
     return pedido;
 }
 
+function calcularTotales(pedidos) {
+    const { subtotal } = pedidos.reduce(
+        (acumulado, pedido) => ({ subtotal: acumulado.subtotal + pedido.total }),
+        { subtotal: 0 }
+    );
+
+    const iva = subtotal * IVA;
+    const total = subtotal + iva;
+
+    return { subtotal, iva, total };
+}
+
 function mostrarPedidos() {
     const pedidos = cliente.listarPedidos();
-    const total = obtenerTotal();
+    const { subtotal, iva, total } = calcularTotales(pedidos);
+
+    console.log(`Subtotal: $${subtotal.toFixed(2)}`);
+    console.log(`IVA (${IVA * 100}%): $${iva.toFixed(2)}`);
     console.log(`Total acumulado: $${total.toFixed(2)}`);
+
     return pedidos;
 }
 
 function obtenerTotal() {
-    return cliente.pedidosCliente.reduce((acumulado, { total }) => acumulado + total, 0);
+    const { total } = calcularTotales(cliente.pedidosCliente);
+    return total;
 }
 
-module.exports = { calcularTotales, agregarPedido, mostrarPedidos, obtenerTotal };
+module.exports = { agregarPedido, mostrarPedidos, obtenerTotal, calcularTotales };
