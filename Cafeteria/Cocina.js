@@ -45,23 +45,25 @@ function ordenarPorPrecio(ascendente = true) {
     return copia.sort((a, b) => ascendente ? a.precio - b.precio : b.precio - a.precio);
 }
 
-function verPedidosPendientes() {
-    const pendientes = cliente.pedidosCliente.filter(pedido => pedido.estado === "pendiente");
+function verPedidosActivos() {
+    const activos = cliente.pedidosCliente.filter(pedido =>
+        pedido.estado !== cliente.ESTADOS_PEDIDO.ENTREGADO && pedido.estado !== cliente.ESTADOS_PEDIDO.CANCELADO
+    );
 
-    console.log("\n--- Pedidos pendientes de preparar ---");
-    if (pendientes.length === 0) {
-        console.log("No hay pedidos pendientes");
-        return pendientes;
+    console.log("\n--- Pedidos activos ---");
+    if (activos.length === 0) {
+        console.log("No hay pedidos activos");
+        return activos;
     }
 
-    for (const pedido of pendientes) {
+    for (const pedido of activos) {
         const nombres = pedido.productos.map(producto => producto.nombre).join(", ");
-        console.log(`#${pedido.id} | ${pedido.folio} | ${pedido.cliente} | ${nombres}`);
+        console.log(`#${pedido.id} | ${pedido.folio} | ${pedido.cliente} | ${nombres} | ${cliente.ETIQUETAS_ESTADO[pedido.estado]}`);
     }
-    return pendientes;
+    return activos;
 }
 
-function marcarPedidoListo(idPedido) {
+function cambiarEstadoPedido(idPedido, nuevoEstado, motivoCancelacion) {
     const pedido = cliente.pedidosCliente.find(pedido => pedido.id === idPedido);
 
     if (!pedido) {
@@ -69,13 +71,23 @@ function marcarPedidoListo(idPedido) {
         return null;
     }
 
-    if (pedido.estado === "listo") {
-        console.log(`Pedido #${idPedido} ya estaba marcado como listo`);
-        return pedido;
+    if (!Object.values(cliente.ESTADOS_PEDIDO).includes(nuevoEstado)) {
+        console.log(`Estado "${nuevoEstado}" no es valido`);
+        return null;
     }
 
-    pedido.estado = "listo";
-    console.log(`Pedido #${idPedido} marcado como listo`);
+    if (nuevoEstado === cliente.ESTADOS_PEDIDO.CANCELADO) {
+        if (!cliente.MOTIVOS_CANCELACION.includes(motivoCancelacion)) {
+            console.log("Debes indicar un motivo de cancelacion valido");
+            return null;
+        }
+        pedido.motivoCancelacion = motivoCancelacion;
+    } else {
+        pedido.motivoCancelacion = null;
+    }
+
+    pedido.estado = nuevoEstado;
+    console.log(`Pedido #${idPedido} actualizado a "${cliente.ETIQUETAS_ESTADO[nuevoEstado]}"`);
     return pedido;
 }
 
@@ -91,6 +103,6 @@ module.exports = {
     buscarPostres,
     buscarProductoPorNombre,
     ordenarPorPrecio,
-    verPedidosPendientes,
-    marcarPedidoListo
+    verPedidosActivos,
+    cambiarEstadoPedido
 };

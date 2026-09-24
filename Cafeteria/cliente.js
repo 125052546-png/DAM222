@@ -9,6 +9,28 @@ const catalogo = [
 
 const pedidosCliente = [];
 
+const ESTADOS_PEDIDO = {
+    PENDIENTE: "pendiente",
+    EN_PROCESO: "en_proceso",
+    EMPAQUETADO: "empaquetado",
+    ENTREGADO: "entregado",
+    CANCELADO: "cancelado"
+};
+
+const ETIQUETAS_ESTADO = {
+    pendiente: "Pedido realizado",
+    en_proceso: "En proceso",
+    empaquetado: "Empaquetado",
+    entregado: "Entregado",
+    cancelado: "Cancelado"
+};
+
+const MOTIVOS_CANCELACION = [
+    "Falta de ingredientes",
+    "Error en el sistema",
+    "Cliente cancelo"
+];
+
 function consultarProductos() {
     console.log("\n--- Productos disponibles ---");
     for (const producto of catalogo) {
@@ -132,7 +154,8 @@ function crearPedido(cliente, idsProductos) {
         subtotal: 0,
         iva: 0,
         total: 0,
-        estado: "pendiente"
+        estado: ESTADOS_PEDIDO.PENDIENTE,
+        motivoCancelacion: null
     };
 
     pedidosCliente.push(pedido);
@@ -157,7 +180,10 @@ function consultarPedidoPorFolio(folio) {
     console.log(`Subtotal: $${pedido.subtotal.toFixed(2)}`);
     console.log(`IVA: $${pedido.iva.toFixed(2)}`);
     console.log(`Total: $${pedido.total.toFixed(2)}`);
-    console.log(`Estado: ${pedido.estado}`);
+    console.log(`Estado: ${ETIQUETAS_ESTADO[pedido.estado] || pedido.estado}`);
+    if (pedido.estado === ESTADOS_PEDIDO.CANCELADO && pedido.motivoCancelacion) {
+        console.log(`Motivo de cancelacion: ${pedido.motivoCancelacion}`);
+    }
     return pedido;
 }
 
@@ -171,7 +197,7 @@ function listarPedidos() {
 
     for (const pedido of pedidosCliente) {
         const nombres = pedido.productos.map(producto => producto.nombre).join(", ");
-        console.log(`#${pedido.id} | ${pedido.folio} | ${pedido.cliente} | ${nombres} | Subtotal $${pedido.subtotal.toFixed(2)} | IVA $${pedido.iva.toFixed(2)} | Total $${pedido.total.toFixed(2)} | ${pedido.estado}`);
+        console.log(`#${pedido.id} | ${pedido.folio} | ${pedido.cliente} | ${nombres} | Subtotal $${pedido.subtotal.toFixed(2)} | IVA $${pedido.iva.toFixed(2)} | Total $${pedido.total.toFixed(2)} | ${ETIQUETAS_ESTADO[pedido.estado] || pedido.estado}`);
     }
     return pedidosCliente;
 }
@@ -184,6 +210,9 @@ agregarProducto("Chocolate caliente", 40);
 module.exports = {
     catalogo,
     pedidosCliente,
+    ESTADOS_PEDIDO,
+    ETIQUETAS_ESTADO,
+    MOTIVOS_CANCELACION,
     consultarProductos,
     mostrarMenuDinamico,
     agregarProducto,

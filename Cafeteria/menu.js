@@ -123,8 +123,8 @@ async function menuCocina(rl) {
         console.log("2. Agregar producto");
         console.log("3. Editar producto");
         console.log("4. Eliminar producto");
-        console.log("5. Ver pedidos pendientes");
-        console.log("6. Marcar pedido como listo");
+        console.log("5. Ver pedidos activos");
+        console.log("6. Cambiar estado de un pedido");
         console.log("7. Buscar y ordenar productos");
         console.log("0. Volver");
         opcion = (await rl.question("Elige una opcion: ")).trim();
@@ -182,23 +182,57 @@ async function menuCocina(rl) {
             }
             await pausar(rl);
         } else if (opcion === "5") {
-            cocina.verPedidosPendientes();
+            cocina.verPedidosActivos();
             await pausar(rl);
         } else if (opcion === "6") {
-            const pendientes = cocina.verPedidosPendientes();
-            const id = Number(await rl.question("\nId del pedido a marcar como listo: "));
+            const activos = cocina.verPedidosActivos();
+            const id = Number(await rl.question("\nId del pedido a actualizar: "));
 
-            if (isNaN(id) || !pendientes.some(pedido => pedido.id === id)) {
-                console.log("Id de pedido invalido o no esta pendiente");
+            if (isNaN(id) || !activos.some(pedido => pedido.id === id)) {
+                console.log("Id de pedido invalido o no esta activo");
+                await pausar(rl);
             } else {
-                console.log(`\nSe marcara el pedido #${id} como listo`);
-                if (await confirmar(rl, "¿Deseas confirmar?")) {
-                    cocina.marcarPedidoListo(id);
+                console.log("\nEstados disponibles:");
+                console.log("1. Pedido realizado");
+                console.log("2. En proceso");
+                console.log("3. Empaquetado");
+                console.log("4. Entregado");
+                console.log("5. Cancelado");
+                const opcionEstado = (await rl.question("Elige el nuevo estado: ")).trim();
+
+                const mapaEstados = {
+                    "1": cliente.ESTADOS_PEDIDO.PENDIENTE,
+                    "2": cliente.ESTADOS_PEDIDO.EN_PROCESO,
+                    "3": cliente.ESTADOS_PEDIDO.EMPAQUETADO,
+                    "4": cliente.ESTADOS_PEDIDO.ENTREGADO,
+                    "5": cliente.ESTADOS_PEDIDO.CANCELADO
+                };
+                const nuevoEstado = mapaEstados[opcionEstado];
+
+                if (!nuevoEstado) {
+                    console.log("Opcion no valida");
+                } else if (nuevoEstado === cliente.ESTADOS_PEDIDO.CANCELADO) {
+                    console.log("\nMotivos de cancelacion:");
+                    cliente.MOTIVOS_CANCELACION.forEach((motivo, indice) => {
+                        console.log(`${indice + 1}. ${motivo}`);
+                    });
+                    const opcionMotivo = Number(await rl.question("Elige el motivo: "));
+                    const motivo = cliente.MOTIVOS_CANCELACION[opcionMotivo - 1];
+
+                    if (!motivo) {
+                        console.log("Motivo no valido");
+                    } else if (await confirmar(rl, `¿Confirmas cancelar el pedido #${id} por "${motivo}"?`)) {
+                        cocina.cambiarEstadoPedido(id, nuevoEstado, motivo);
+                    } else {
+                        console.log("Accion cancelada");
+                    }
+                } else if (await confirmar(rl, `¿Confirmas cambiar el pedido #${id} a "${cliente.ETIQUETAS_ESTADO[nuevoEstado]}"?`)) {
+                    cocina.cambiarEstadoPedido(id, nuevoEstado);
                 } else {
                     console.log("Accion cancelada");
                 }
+                await pausar(rl);
             }
-            await pausar(rl);
         } else if (opcion === "7") {
             await menuBusquedaCocina(rl);
         } else if (opcion !== "0") {
