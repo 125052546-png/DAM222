@@ -34,14 +34,27 @@ const MOTIVOS_CANCELACION = [
 function consultarProductos() {
     console.log("\n--- Productos disponibles ---");
     for (const producto of catalogo) {
-        console.log(`${producto.id}. ${producto.nombre} - $${producto.precio.toFixed(2)}`);
+        const agotado = producto.stock > 0 ? "" : " (AGOTADO)";
+        console.log(`${producto.id}. ${producto.nombre} - $${producto.precio.toFixed(2)}${agotado}`);
     }
     return catalogo;
 }
 
+const CATEGORIAS = ["bebida", "postre", "comida", "otro"];
+
 function agregarProducto(nombre, precio, categoria = "otro", stock = 10, promocion = false) {
     if (!nombre || isNaN(precio) || precio <= 0) {
         console.log("Producto invalido: se requiere nombre y un precio mayor a 0");
+        return null;
+    }
+
+    if (!CATEGORIAS.includes(categoria)) {
+        console.log(`Categoria invalida: usa ${CATEGORIAS.join(", ")}`);
+        return null;
+    }
+
+    if (!Number.isInteger(stock) || stock < 0) {
+        console.log("Stock invalido: debe ser un entero mayor o igual a 0");
         return null;
     }
 
@@ -55,7 +68,7 @@ function agregarProducto(nombre, precio, categoria = "otro", stock = 10, promoci
     };
 
     catalogo.push(producto);
-    console.log(`Producto #${producto.id} agregado: ${nombre} - $${precio.toFixed(2)}`);
+    console.log(`Producto #${producto.id} agregado: ${nombre} [${categoria}] - $${precio.toFixed(2)}${promocion ? " (EN PROMOCION)" : ""} | stock: ${stock}`);
     return producto;
 }
 
@@ -84,7 +97,8 @@ function buscarProducto(idProducto) {
     return catalogo.find(producto => producto.id === idProducto);
 }
 
-function editarProducto(idProducto, nombre, precio) {
+// categoria y promocion son opcionales: si no se indican, se conservan los actuales
+function editarProducto(idProducto, nombre, precio, categoria = undefined, promocion = undefined, stock = undefined) {
     const producto = buscarProducto(idProducto);
 
     if (!producto) {
@@ -97,9 +111,22 @@ function editarProducto(idProducto, nombre, precio) {
         return null;
     }
 
+    if (categoria !== undefined && !CATEGORIAS.includes(categoria)) {
+        console.log(`Categoria invalida: usa ${CATEGORIAS.join(", ")}`);
+        return null;
+    }
+
+    if (stock !== undefined && (!Number.isInteger(stock) || stock < 0)) {
+        console.log("Stock invalido: debe ser un entero mayor o igual a 0");
+        return null;
+    }
+
     producto.nombre = nombre;
     producto.precio = precio;
-    console.log(`Producto #${producto.id} actualizado: ${nombre} - $${precio.toFixed(2)}`);
+    if (stock !== undefined) producto.stock = stock;
+    if (categoria !== undefined) producto.categoria = categoria;
+    if (promocion !== undefined) producto.promocion = promocion;
+    console.log(`Producto #${producto.id} actualizado: ${producto.nombre} [${producto.categoria}] - $${precio.toFixed(2)}${producto.promocion ? " (EN PROMOCION)" : ""} | stock: ${producto.stock}`);
     return producto;
 }
 
@@ -127,18 +154,35 @@ function generarFolio() {
     return folio;
 }
 
-function crearPedido(cliente, idsProductos) {
+// "2x Capuchino, 1x Pan dulce"
+function describirProductos(pedido) {
+    return pedido.productos.map(producto => `${producto.cantidad}x ${producto.nombre}`).join(", ");
+}
+
+// items: [{ id, cantidad }]
+function crearPedido(cliente, items) {
     const productos = [];
 
-    for (const idProducto of idsProductos) {
-        const producto = buscarProducto(idProducto);
+    for (const { id, cantidad } of items) {
+        const producto = buscarProducto(id);
 
         if (!producto) {
-            console.log(`Producto con id ${idProducto} no existe, se omite`);
+            console.log(`Producto con id ${id} no existe, se omite`);
             continue;
         }
 
-        productos.push(producto);
+        if (producto.stock <= 0) {
+            console.log(`"${producto.nombre}" esta agotado, se omite`);
+            continue;
+        }
+
+        if (!Number.isInteger(cantidad) || cantidad <= 0) {
+            console.log(`Cantidad invalida para "${producto.nombre}", se omite`);
+            continue;
+        }
+
+        productos.push({ id: producto.id, nombre: producto.nombre, precio: producto.precio, cantidad: cantidad });
+        total += producto.precio * cantidad;
     }
 
     if (productos.length === 0) {
@@ -151,11 +195,9 @@ function crearPedido(cliente, idsProductos) {
         folio: generarFolio(),
         cliente: cliente,
         productos: productos,
-        subtotal: 0,
-        iva: 0,
-        total: 0,
-        estado: ESTADOS_PEDIDO.PENDIENTE,
-        motivoCancelacion: null
+        total: total,
+        estado: "pendiente",
+        motivo: null
     };
 
     pedidosCliente.push(pedido);
@@ -172,7 +214,7 @@ function consultarPedidoPorFolio(folio) {
         return null;
     }
 
-    const nombres = pedido.productos.map(producto => producto.nombre).join(", ");
+    const nombres = describirProductos(pedido);
     console.log("\n--- Estado de tu pedido ---");
     console.log(`Folio: ${pedido.folio}`);
     console.log(`Cliente: ${pedido.cliente}`);
@@ -180,11 +222,74 @@ function consultarPedidoPorFolio(folio) {
     console.log(`Subtotal: $${pedido.subtotal.toFixed(2)}`);
     console.log(`IVA: $${pedido.iva.toFixed(2)}`);
     console.log(`Total: $${pedido.total.toFixed(2)}`);
-    console.log(`Estado: ${ETIQUETAS_ESTADO[pedido.estado] || pedido.estado}`);
-    if (pedido.estado === ESTADOS_PEDIDO.CANCELADO && pedido.motivoCancelacion) {
-        console.log(`Motivo de cancelacion: ${pedido.motivoCancelacion}`);
+    console.log(`Estado: ${pedido.estado}`);
+    if (pedido.motivo) {
+        console.log(`Motivo: ${pedido.motivo}`);
     }
     return pedido;
+}
+
+const ESTADOS_FINALES = ["listo", "cancelado"];
+
+function esperar(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Consulta el pedido cada `intervaloMs` con setTimeout y avisa cada cambio de estado.
+// Termina cuando el pedido queda listo/cancelado o se agotan las consultas.
+async function seguirPedido(folio, intervaloMs = 1000, maxConsultas = 30) {
+    const folioNormalizado = (folio || "").trim().toUpperCase();
+    let ultimoEstado = null;
+
+    for (let consulta = 0; consulta < maxConsultas; consulta++) {
+        const pedido = pedidosCliente.find(pedido => pedido.folio === folioNormalizado);
+
+        if (!pedido) {
+            console.log(`No se encontro ningun pedido con el folio "${folio}"`);
+            return null;
+        }
+
+        if (pedido.estado !== ultimoEstado) {
+            ultimoEstado = pedido.estado;
+            const motivo = pedido.motivo ? ` - motivo: ${pedido.motivo}` : "";
+            console.log(`[${new Date().toLocaleTimeString()}] Pedido ${pedido.folio}: ${pedido.estado}${motivo}`);
+        }
+
+        if (ESTADOS_FINALES.includes(pedido.estado)) {
+            return pedido;
+        }
+
+        await esperar(intervaloMs);
+    }
+
+    console.log("Se dejo de seguir el pedido: sigue en proceso, consultalo mas tarde");
+    return pedidosCliente.find(pedido => pedido.folio === folioNormalizado);
+}
+
+// Pedidos de prueba para no iniciar el sistema en 0
+function cargarPedidosDePrueba() {
+    const base = [
+        { folio: "F-1001", cliente: "Ana", items: [{ id: 1, cantidad: 2 }, { id: 4, cantidad: 1 }], estado: "pendiente", motivo: null },
+        { folio: "F-1002", cliente: "Luis", items: [{ id: 2, cantidad: 1 }, { id: 5, cantidad: 2 }], estado: "pendiente", motivo: null },
+        { folio: "F-1003", cliente: "Marta", items: [{ id: 3, cantidad: 1 }], estado: "listo", motivo: null },
+        { folio: "F-1004", cliente: "Pedro", items: [{ id: 1, cantidad: 1 }, { id: 2, cantidad: 1 }, { id: 4, cantidad: 3 }], estado: "cancelado", motivo: "Cliente no se presento a recoger" }
+    ];
+
+    for (const datos of base) {
+        const productos = datos.items.map(({ id, cantidad }) => {
+            const { nombre, precio } = buscarProducto(id);
+            return { id, nombre, precio, cantidad };
+        });
+        pedidosCliente.push({
+            id: pedidosCliente.length + 1,
+            folio: datos.folio,
+            cliente: datos.cliente,
+            productos: productos,
+            total: productos.reduce((suma, producto) => suma + producto.precio * producto.cantidad, 0),
+            estado: datos.estado,
+            motivo: datos.motivo
+        });
+    }
 }
 
 function listarPedidos() {
@@ -196,18 +301,20 @@ function listarPedidos() {
     }
 
     for (const pedido of pedidosCliente) {
-        const nombres = pedido.productos.map(producto => producto.nombre).join(", ");
-        console.log(`#${pedido.id} | ${pedido.folio} | ${pedido.cliente} | ${nombres} | Subtotal $${pedido.subtotal.toFixed(2)} | IVA $${pedido.iva.toFixed(2)} | Total $${pedido.total.toFixed(2)} | ${ETIQUETAS_ESTADO[pedido.estado] || pedido.estado}`);
+        const nombres = describirProductos(pedido);
+        console.log(`#${pedido.id} | ${pedido.folio} | ${pedido.cliente} | ${nombres} | $${pedido.total.toFixed(2)} | ${pedido.estado}`);
     }
     return pedidosCliente;
 }
 
 // mas pruebas
-agregarProducto("Galleta", 15);
-agregarProducto("Jugo de naranja", 35);
-agregarProducto("Chocolate caliente", 40);
+agregarProducto("Galleta", 15, "postre");
+agregarProducto("Jugo de naranja", 35, "bebida");
+agregarProducto("Chocolate caliente", 40, "bebida", 10, true);
+cargarPedidosDePrueba();
 
 module.exports = {
+    CATEGORIAS,
     catalogo,
     pedidosCliente,
     ESTADOS_PEDIDO,
@@ -220,6 +327,8 @@ module.exports = {
     eliminarProducto,
     buscarProducto,
     crearPedido,
+    describirProductos,
     listarPedidos,
-    consultarPedidoPorFolio
+    consultarPedidoPorFolio,
+    seguirPedido
 };
