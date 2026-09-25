@@ -1,15 +1,16 @@
 const cliente = require("./cliente");
+const caja = require("./caja");
 
 function verCatalogo() {
     return cliente.consultarProductos();
 }
 
-function agregarProducto(nombre, precio) {
-    return cliente.agregarProducto(nombre, precio);
+function agregarProducto(nombre, precio, categoria, promocion, stock) {
+    return cliente.agregarProducto(nombre, precio, categoria, stock, promocion);
 }
 
-function editarProducto(idProducto, nombre, precio) {
-    return cliente.editarProducto(idProducto, nombre, precio);
+function editarProducto(idProducto, nombre, precio, categoria, promocion, stock) {
+    return cliente.editarProducto(idProducto, nombre, precio, categoria, promocion, stock);
 }
 
 function eliminarProducto(idProducto) {
@@ -28,12 +29,15 @@ function buscarPorEtiqueta(etiqueta) {
     return cliente.catalogo.filter(producto => producto.categoria === etiqueta);
 }
 
-function buscarBebidas() {
-    return buscarPorEtiqueta("bebida");
+// Ignora mayusculas y acentos: "cafe" encuentra "Café americano"
+function normalizar(texto) {
+    return texto.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 }
 
-function buscarPostres() {
-    return buscarPorEtiqueta("postre");
+function buscarPorNombre(texto) {
+    const busqueda = normalizar(texto || "");
+    if (!busqueda) return [];
+    return cliente.catalogo.filter(producto => normalizar(producto.nombre).includes(busqueda));
 }
 
 function buscarProductoPorNombre(nombre) {
@@ -55,7 +59,7 @@ function verPedidosPendientes() {
     }
 
     for (const pedido of pendientes) {
-        const nombres = pedido.productos.map(producto => producto.nombre).join(", ");
+        const nombres = cliente.describirProductos(pedido);
         console.log(`#${pedido.id} | ${pedido.folio} | ${pedido.cliente} | ${nombres}`);
     }
     return pendientes;
@@ -79,7 +83,47 @@ function marcarPedidoListo(idPedido) {
     return pedido;
 }
 
+const MOTIVOS_FALLO = [
+    "Se acabo un ingrediente",
+    "Fallo la maquina de cafe",
+    "Se cayo el pedido durante la preparacion",
+    "Error en la cocina"
+];
+
+// Devuelve una Promise: tras `duracionMs` el pedido queda "listo" (resolve) o falla (reject).
+// Al terminar avisa a caja mediante sus callbacks.
+function prepararPedido(idPedido, { duracionMs = 3000 + Math.random() * 2000, probabilidadExito = 0.8 } = {}) {
+    return new Promise((resolve, reject) => {
+        const pedido = cliente.pedidosCliente.find(pedido => pedido.id === idPedido);
+
+        if (!pedido) {
+            return reject(new Error(`Pedido #${idPedido} no existe`));
+        }
+
+        if (pedido.estado !== "pendiente") {
+            return reject(new Error(`Pedido #${idPedido} no esta pendiente (estado: ${pedido.estado})`));
+        }
+
+        pedido.estado = "preparando";
+        console.log(`Pedido #${idPedido} en preparacion (${(duracionMs / 1000).toFixed(1)} s)...`);
+
+        setTimeout(() => {
+            if (Math.random() < probabilidadExito) {
+                pedido.estado = "listo";
+                caja.notificarEstado(pedido);
+                resolve(pedido);
+            } else {
+                pedido.estado = "cancelado";
+                pedido.motivo = MOTIVOS_FALLO[Math.floor(Math.random() * MOTIVOS_FALLO.length)];
+                caja.notificarEstado(pedido);
+                reject(new Error(pedido.motivo));
+            }
+        }, duracionMs);
+    });
+}
+
 module.exports = {
+    prepararPedido,
     verCatalogo,
     agregarProducto,
     editarProducto,
@@ -87,8 +131,7 @@ module.exports = {
     buscarBaratos,
     buscarCaros,
     buscarPorEtiqueta,
-    buscarBebidas,
-    buscarPostres,
+    buscarPorNombre,
     buscarProductoPorNombre,
     ordenarPorPrecio,
     verPedidosPendientes,

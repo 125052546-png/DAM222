@@ -16,11 +16,18 @@ async function confirmar(rl, mensaje) {
     return respuesta === "s" || respuesta === "si";
 }
 
-function parsearIds(texto) {
-    return texto
-        .split(",")
-        .map(id => Number(id.trim()))
-        .filter(id => !isNaN(id) && id > 0);
+// Devuelve la etiqueta elegida (ENTER conserva `porDefecto`) o null si no es valida
+async function pedirCategoria(rl, porDefecto) {
+    const texto = (await rl.question(`Etiqueta (${cliente.CATEGORIAS.join("/")}) [${porDefecto}]: `)).trim().toLowerCase();
+    const categoria = texto || porDefecto;
+    return cliente.CATEGORIAS.includes(categoria) ? categoria : null;
+}
+
+// Devuelve el stock elegido (ENTER conserva `porDefecto`) o null si no es valido
+async function pedirStock(rl, porDefecto) {
+    const texto = (await rl.question(`Existencias (stock) [${porDefecto}]: `)).trim();
+    const stock = texto === "" ? porDefecto : Number(texto);
+    return Number.isInteger(stock) && stock >= 0 ? stock : null;
 }
 
 async function flujoCrearPedido(rl, contexto) {
@@ -32,21 +39,43 @@ async function flujoCrearPedido(rl, contexto) {
         return;
     }
 
-    const idsTexto = await rl.question("Ids de los productos separados por coma (ej. 1,3,4): ");
-    const ids = parsearIds(idsTexto);
-    if (ids.length === 0) {
-        console.log("Debes indicar al menos un id de producto valido");
+    const items = [];
+    let agregarOtro = true;
+
+    while (agregarOtro) {
+        const id = Number(await rl.question("Id del producto: "));
+        const producto = cliente.buscarProducto(id);
+
+        if (!producto) {
+            console.log("Id de producto invalido");
+        } else {
+            const cantidad = Number(await rl.question(`Cantidad de "${producto.nombre}": `));
+
+            if (!Number.isInteger(cantidad) || cantidad <= 0) {
+                console.log("Cantidad invalida: debe ser un entero mayor a 0");
+            } else {
+                items.push({ id, cantidad });
+                console.log(`Agregado: ${cantidad}x ${producto.nombre}`);
+            }
+        }
+
+        agregarOtro = await confirmar(rl, "¿Quieres agregar mas productos?");
+    }
+
+    if (items.length === 0) {
+        console.log("Debes agregar al menos un producto valido");
         return;
     }
 
-    console.log(`\nSe creara un pedido para "${nombre}" con los productos: ${ids.join(", ")}`);
+    const resumen = items.map(({ id, cantidad }) => `${cantidad}x ${cliente.buscarProducto(id).nombre}`).join(", ");
+    console.log(`\nSe creara un pedido para "${nombre}" con: ${resumen}`);
     const confirmado = await confirmar(rl, `[${contexto}] ¿Deseas confirmar el pedido?`);
     if (!confirmado) {
         console.log("Pedido cancelado");
         return;
     }
 
-    cliente.crearPedido(nombre, ids);
+    cliente.crearPedido(nombre, items);
 }
 
 async function menuCaja(rl) {
@@ -57,6 +86,8 @@ async function menuCaja(rl) {
         console.log("\n=== Menu Caja ===");
         console.log("1. Crear pedido");
         console.log("2. Ver pedidos y total");
+        console.log("3. Cancelar pedido");
+        console.log("4. Ver notificaciones de pedidos");
         console.log("0. Volver");
         opcion = (await rl.question("Elige una opcion: ")).trim();
 
@@ -65,6 +96,27 @@ async function menuCaja(rl) {
             await pausar(rl);
         } else if (opcion === "2") {
             caja.mostrarPedidos();
+            await pausar(rl);
+        } else if (opcion === "3") {
+            cliente.listarPedidos();
+            const id = Number(await rl.question("\nId del pedido a cancelar: "));
+            const motivo = (await rl.question("Razon de la cancelacion: ")).trim();
+            if (isNaN(id)) {
+                console.log("Id de pedido invalido");
+            } else if (!motivo) {
+                console.log("Debes indicar una razon");
+            } else if (await confirmar(rl, `¿Cancelar el pedido #${id}?`)) {
+                caja.cancelarPedido(id, motivo);
+            } else {
+                console.log("Accion cancelada");
+            }
+            await pausar(rl);
+        } else if (opcion === "4") {
+            console.log("\n--- Notificaciones ---");
+            if (caja.notificaciones.length === 0) {
+                console.log("Sin notificaciones");
+            }
+            caja.notificaciones.forEach(mensaje => console.log(mensaje));
             await pausar(rl);
         } else if (opcion !== "0") {
             console.log(`Opcion "${opcion}" no valida`);
@@ -124,7 +176,7 @@ async function menuCocina(rl) {
         console.log("3. Editar producto");
         console.log("4. Eliminar producto");
         console.log("5. Ver pedidos pendientes");
-        console.log("6. Marcar pedido como listo");
+        console.log("6. Preparar pedido");
         console.log("7. Buscar y ordenar productos");
         console.log("0. Volver");
         opcion = (await rl.question("Elige una opcion: ")).trim();
@@ -135,13 +187,20 @@ async function menuCocina(rl) {
         } else if (opcion === "2") {
             const nombre = (await rl.question("Nombre del producto: ")).trim();
             const precio = Number(await rl.question("Precio: "));
+            const categoria = await pedirCategoria(rl, "otro");
+            const stock = await pedirStock(rl, 10);
+            const promocion = await confirmar(rl, "¿Esta en promocion?");
 
             if (!nombre || isNaN(precio) || precio <= 0) {
                 console.log("Datos invalidos: se requiere nombre y un precio mayor a 0");
+            } else if (!categoria) {
+                console.log(`Etiqueta invalida: usa ${cliente.CATEGORIAS.join(", ")}`);
+            } else if (stock === null) {
+                console.log("Stock invalido: debe ser un entero mayor o igual a 0");
             } else {
-                console.log(`\nSe agregara "${nombre}" - $${precio.toFixed(2)} al catalogo`);
+                console.log(`\nSe agregara "${nombre}" [${categoria}] - $${precio.toFixed(2)}${promocion ? " (EN PROMOCION)" : ""} | stock: ${stock}`);
                 if (await confirmar(rl, "¿Deseas confirmar?")) {
-                    cocina.agregarProducto(nombre, precio);
+                    cocina.agregarProducto(nombre, precio, categoria, promocion, stock);
                 } else {
                     console.log("Accion cancelada");
                 }
@@ -150,17 +209,33 @@ async function menuCocina(rl) {
         } else if (opcion === "3") {
             cocina.verCatalogo();
             const id = Number(await rl.question("\nId del producto a editar: "));
-            const nombre = (await rl.question("Nuevo nombre: ")).trim();
-            const precio = Number(await rl.question("Nuevo precio: "));
+            const actual = cliente.buscarProducto(id);
 
-            if (isNaN(id) || !cliente.buscarProducto(id)) {
+            if (isNaN(id) || !actual) {
                 console.log("Id de producto invalido");
-            } else if (!nombre || isNaN(precio) || precio <= 0) {
-                console.log("Datos invalidos: se requiere nombre y un precio mayor a 0");
+                await pausar(rl);
+                continue;
+            }
+
+            console.log("(ENTER en cualquier campo deja el valor actual)");
+            const nombre = (await rl.question(`Nuevo nombre [${actual.nombre}]: `)).trim() || actual.nombre;
+            const textoPrecio = (await rl.question(`Nuevo precio [${actual.precio}]: `)).trim();
+            const precio = textoPrecio === "" ? actual.precio : Number(textoPrecio);
+            const categoria = await pedirCategoria(rl, actual.categoria);
+            const stock = await pedirStock(rl, actual.stock);
+            const textoPromo = (await rl.question(`¿En promocion? (s/n) [${actual.promocion ? "s" : "n"}]: `)).trim().toLowerCase();
+            const promocion = textoPromo === "" ? actual.promocion : (textoPromo === "s" || textoPromo === "si");
+
+            if (isNaN(precio) || precio <= 0) {
+                console.log("Datos invalidos: el precio debe ser mayor a 0");
+            } else if (!categoria) {
+                console.log(`Etiqueta invalida: usa ${cliente.CATEGORIAS.join(", ")}`);
+            } else if (stock === null) {
+                console.log("Stock invalido: debe ser un entero mayor o igual a 0");
             } else {
-                console.log(`\nSe actualizara el producto #${id} a "${nombre}" - $${precio.toFixed(2)}`);
+                console.log(`\nSe actualizara el producto #${id} a "${nombre}" [${categoria}] - $${precio.toFixed(2)}${promocion ? " (EN PROMOCION)" : ""} | stock: ${stock}`);
                 if (await confirmar(rl, "¿Deseas confirmar?")) {
-                    cocina.editarProducto(id, nombre, precio);
+                    cocina.editarProducto(id, nombre, precio, categoria, promocion, stock);
                 } else {
                     console.log("Accion cancelada");
                 }
@@ -186,14 +261,17 @@ async function menuCocina(rl) {
             await pausar(rl);
         } else if (opcion === "6") {
             const pendientes = cocina.verPedidosPendientes();
-            const id = Number(await rl.question("\nId del pedido a marcar como listo: "));
+            const id = Number(await rl.question("\nId del pedido a preparar: "));
 
             if (isNaN(id) || !pendientes.some(pedido => pedido.id === id)) {
                 console.log("Id de pedido invalido o no esta pendiente");
             } else {
-                console.log(`\nSe marcara el pedido #${id} como listo`);
+                console.log(`\nSe empezara a preparar el pedido #${id}`);
                 if (await confirmar(rl, "¿Deseas confirmar?")) {
-                    cocina.marcarPedidoListo(id);
+                    // Se prepara en segundo plano: el resultado llega a caja por callback
+                    cocina.prepararPedido(id)
+                        .then(pedido => console.log(`[COCINA] Pedido #${pedido.id} terminado`))
+                        .catch(error => console.log(`[COCINA] Fallo la preparacion: ${error.message}`));
                 } else {
                     console.log("Accion cancelada");
                 }
@@ -214,7 +292,8 @@ function imprimirProductos(productos) {
         return;
     }
     productos.forEach(producto => {
-        console.log(`${producto.id}. ${producto.nombre} [${producto.categoria}] - $${producto.precio.toFixed(2)}`);
+        const promo = producto.promocion ? " (EN PROMOCION)" : "";
+        console.log(`${producto.id}. ${producto.nombre} [${producto.categoria}] - $${producto.precio.toFixed(2)}${promo}`);
     });
 }
 
@@ -226,11 +305,10 @@ async function menuBusquedaCocina(rl) {
         console.log("\n=== Buscar y ordenar productos ===");
         console.log("1. Productos baratos (precio menor o igual a...)");
         console.log("2. Productos caros (precio mayor o igual a...)");
-        console.log("3. Bebidas");
-        console.log("4. Postres");
-        console.log("5. Buscar por etiqueta");
-        console.log("6. Ordenar de menor a mayor precio");
-        console.log("7. Ordenar de mayor a menor precio");
+        console.log("3. Buscar por nombre");
+        console.log("4. Buscar por etiqueta");
+        console.log("5. Ordenar de menor a mayor precio");
+        console.log("6. Ordenar de mayor a menor precio");
         console.log("0. Volver");
         opcion = (await rl.question("Elige una opcion: ")).trim();
 
@@ -243,19 +321,21 @@ async function menuBusquedaCocina(rl) {
             imprimirProductos(cocina.buscarCaros(limite));
             await pausar(rl);
         } else if (opcion === "3") {
-            imprimirProductos(cocina.buscarBebidas());
+            const texto = (await rl.question("Nombre o parte del nombre: ")).trim();
+            if (!texto) {
+                console.log("Debes escribir algo para buscar");
+            } else {
+                imprimirProductos(cocina.buscarPorNombre(texto));
+            }
             await pausar(rl);
         } else if (opcion === "4") {
-            imprimirProductos(cocina.buscarPostres());
-            await pausar(rl);
-        } else if (opcion === "5") {
-            const etiqueta = (await rl.question("Etiqueta (bebida/postre/comida): ")).trim();
+            const etiqueta = (await rl.question(`Etiqueta (${cliente.CATEGORIAS.join("/")}): `)).trim().toLowerCase();
             imprimirProductos(cocina.buscarPorEtiqueta(etiqueta));
             await pausar(rl);
-        } else if (opcion === "6") {
+        } else if (opcion === "5") {
             imprimirProductos(cocina.ordenarPorPrecio(true));
             await pausar(rl);
-        } else if (opcion === "7") {
+        } else if (opcion === "6") {
             imprimirProductos(cocina.ordenarPorPrecio(false));
             await pausar(rl);
         } else if (opcion !== "0") {
