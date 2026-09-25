@@ -257,14 +257,15 @@ async function menuCocina(rl) {
             }
             await pausar(rl);
         } else if (opcion === "5") {
-            cocina.verPedidosPendientes();
+            cocina.verPedidosActivos();
             await pausar(rl);
         } else if (opcion === "6") {
             const pendientes = cocina.verPedidosPendientes();
             const id = Number(await rl.question("\nId del pedido a preparar: "));
 
-            if (isNaN(id) || !pendientes.some(pedido => pedido.id === id)) {
-                console.log("Id de pedido invalido o no esta pendiente");
+            if (isNaN(id) || !activos.some(pedido => pedido.id === id)) {
+                console.log("Id de pedido invalido o no esta activo");
+                await pausar(rl);
             } else {
                 console.log(`\nSe empezara a preparar el pedido #${id}`);
                 if (await confirmar(rl, "¿Deseas confirmar?")) {
@@ -275,8 +276,8 @@ async function menuCocina(rl) {
                 } else {
                     console.log("Accion cancelada");
                 }
+                await pausar(rl);
             }
-            await pausar(rl);
         } else if (opcion === "7") {
             await menuBusquedaCocina(rl);
         } else if (opcion !== "0") {

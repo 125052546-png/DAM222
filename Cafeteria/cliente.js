@@ -9,6 +9,28 @@ const catalogo = [
 
 const pedidosCliente = [];
 
+const ESTADOS_PEDIDO = {
+    PENDIENTE: "pendiente",
+    EN_PROCESO: "en_proceso",
+    EMPAQUETADO: "empaquetado",
+    ENTREGADO: "entregado",
+    CANCELADO: "cancelado"
+};
+
+const ETIQUETAS_ESTADO = {
+    pendiente: "Pedido realizado",
+    en_proceso: "En proceso",
+    empaquetado: "Empaquetado",
+    entregado: "Entregado",
+    cancelado: "Cancelado"
+};
+
+const MOTIVOS_CANCELACION = [
+    "Falta de ingredientes",
+    "Error en el sistema",
+    "Cliente cancelo"
+];
+
 function consultarProductos() {
     console.log("\n--- Productos disponibles ---");
     for (const producto of catalogo) {
@@ -140,7 +162,6 @@ function describirProductos(pedido) {
 // items: [{ id, cantidad }]
 function crearPedido(cliente, items) {
     const productos = [];
-    let total = 0;
 
     for (const { id, cantidad } of items) {
         const producto = buscarProducto(id);
@@ -180,7 +201,7 @@ function crearPedido(cliente, items) {
     };
 
     pedidosCliente.push(pedido);
-    console.log(`Pedido creado para ${cliente} - Total: $${total.toFixed(2)}`);
+    console.log(`Pedido creado para ${cliente}`);
     console.log(`Tu folio es: ${pedido.folio} (guardalo para consultar el estado de tu pedido)`);
     return pedido;
 }
@@ -198,6 +219,8 @@ function consultarPedidoPorFolio(folio) {
     console.log(`Folio: ${pedido.folio}`);
     console.log(`Cliente: ${pedido.cliente}`);
     console.log(`Productos: ${nombres}`);
+    console.log(`Subtotal: $${pedido.subtotal.toFixed(2)}`);
+    console.log(`IVA: $${pedido.iva.toFixed(2)}`);
     console.log(`Total: $${pedido.total.toFixed(2)}`);
     console.log(`Estado: ${pedido.estado}`);
     if (pedido.motivo) {
@@ -294,6 +317,9 @@ module.exports = {
     CATEGORIAS,
     catalogo,
     pedidosCliente,
+    ESTADOS_PEDIDO,
+    ETIQUETAS_ESTADO,
+    MOTIVOS_CANCELACION,
     consultarProductos,
     mostrarMenuDinamico,
     agregarProducto,
