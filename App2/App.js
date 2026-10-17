@@ -4,18 +4,18 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, Image } from 'react-native';
 import { Saludo } from './components/Saludo';
 import { Saludo2 } from './components/Saludo2';
+import { Perfil } from './components/Perfil';
+import {useState} from 'react'
+
 /* zona del main */
 export default function App() {
-  return (
+    return (
     <View style={styles.container}>
-      <Text>hola mundo react native</Text>
-      <Image source={require("./assets/wave.png")} ></Image>
-      <Text>hola mundo react native</Text>
-      <Saludo></Saludo>
-      <Saludo/>
+      
+      <Perfil nombre = "Andres"carrera= "ITIID" materia = "movil" cuatri = "4"/>
 
-      <Saludo2></Saludo2>
-      <Saludo2/>
+      <Perfil nombre = "juan"carrera= "ITIID" materia = "movil" cuatri = "4"/>
+      <Perfil nombre = "pepe" carrera= "ITIID" materia = "movil" cuatri = "4" />
       
 
       <StatusBar style="auto" />
