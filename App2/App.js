@@ -12,10 +12,10 @@ export default function App() {
     return (
     <View style={styles.container}>
       
-      <Perfil nombre = "Andres"carrera= "ITIID" materia = "movil" cuatri = "4"/>
+      <Perfil style={styles.tarjeta1} nombre = "Andres"carrera= "ITIID" materia = "movil" cuatri = "4"/>
 
-      <Perfil nombre = "juan"carrera= "ITIID" materia = "movil" cuatri = "4"/>
-      <Perfil nombre = "pepe" carrera= "ITIID" materia = "movil" cuatri = "4" />
+      <Perfil style={styles.tarjeta2} nombre = "juan"carrera= "ITIID" materia = "movil" cuatri = "4" />
+      <Perfil style={styles.tarjeta3} nombre = "pepe" carrera= "ITIID" materia = "movil" cuatri = "4" />
       
 
       <StatusBar style="auto" />
@@ -31,6 +31,35 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-around',
+    flexDirection:'row'
   },
+  tarjeta1:{
+        borderWidth:3,
+        borderRadius:10,
+        padding:15,
+        margin:20,
+        backgroundColor:'blue',
+        alignItems:'center',
+        
+
+    },
+    tarjeta2:{
+        borderWidth:3,
+        borderRadius:10,
+        padding:15,
+        margin:20,
+        backgroundColor:'red',
+        alignItems:'center',
+
+    },
+    tarjeta3:{
+        borderWidth:3,
+        borderRadius:10,
+        padding:15,
+        margin:20,
+        backgroundColor:'pink',
+        alignItems:'center',
+
+    },
 });
